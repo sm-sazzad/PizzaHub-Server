@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import "dotenv/config";
-import { MongoClient } from "mongodb";
+import { MongoClient, ObjectId } from "mongodb";
 
 const port = process.env.PORT || 5000;
 const app = express();
@@ -35,8 +35,28 @@ app.get("/menu", async (req, res) => {
     res.send(result);
     return;
   }
-  console.log(vendorEmail);
-  const result = await menu.find({}).toArray();
+  const result = await menu.find({ status: "approved" }).toArray();
+  res.send(result);
+});
+
+app.patch("/menu/:id", async (req, res) => {
+  const { id } = req.params;
+  console.log(req.body.status);
+  const query = { _id: new ObjectId(id) };
+  const updateDoc = {
+    $set: {
+      status: req.body.status,
+    },
+  };
+
+  const result = await menu.updateOne(query, updateDoc);
+  res.send(result);
+});
+
+app.delete("/menu/:id", async (req, res) => {
+  const { id } = req.params;
+  const query = { _id: new ObjectId(id) };
+  const result = await menu.deleteOne(query);
   res.send(result);
 });
 
