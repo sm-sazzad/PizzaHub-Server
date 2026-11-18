@@ -28,6 +28,18 @@ app.get("/", (req, res) => {
   res.send("wellcome");
 });
 
+app.get("/menu", async (req, res) => {
+  const vendorEmail = req.query.vendorEmail;
+  if (vendorEmail) {
+    const result = await menu.find({ vendorEmail }).toArray();
+    res.send(result);
+    return;
+  }
+  console.log(vendorEmail);
+  const result = await menu.find({}).toArray();
+  res.send(result);
+});
+
 app.post("/menu", async (req, res) => {
   const newItem = req.body;
   const result = await menu.insertOne(newItem);
