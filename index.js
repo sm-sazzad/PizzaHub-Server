@@ -160,11 +160,26 @@ app.patch("/admin/users/:id/role", async (req, res) => {
   const newRole = req.body;
   const updatedDoc = {
     $set: {
-      role: newRole,
+      role: newRole.role,
     },
   };
   const result = await premiumUser.updateOne(query, updatedDoc);
   res.send(result);
+  console.log(result);
+});
+
+app.patch("/admin/users/:id/block", async (req, res) => {
+  const { id } = req.params;
+  const updateBlock = req.body;
+  const query = { _id: new ObjectId(id) };
+  const updatedDoc = {
+    $set: {
+      isBlocked: updateBlock.isBlocked,
+    },
+  };
+  const result = await premiumUser.updateOne(query, updatedDoc);
+  res.send(result);
+  console.log(result);
 });
 
 app.listen(port, () => {
