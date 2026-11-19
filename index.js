@@ -2,6 +2,9 @@ import express from "express";
 import cors from "cors";
 import "dotenv/config";
 import { MongoClient, ObjectId } from "mongodb";
+import Stripe from "stripe";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 const port = process.env.PORT || 5000;
 const app = express();
@@ -23,6 +26,7 @@ await connectToMongoDB();
 
 const database = client.db("PizzaHub");
 const menu = database.collection("menu");
+const premiumUser = database.collection("user");
 
 app.get("/", (req, res) => {
   res.send("wellcome");
@@ -64,6 +68,27 @@ app.post("/menu", async (req, res) => {
   const newItem = req.body;
   const result = await menu.insertOne(newItem);
   res.send(result);
+});
+
+app.patch("/premium-users", async (req, res) => {
+  const { sessionId } = req.body;
+  const session = await stripe.checkout.sessions.retrieve(sessionId, {
+    expand: ["line_items", "payment_intent"],
+  });
+  if (session?.status == "complete" && session.payment_status === "paid") {
+    const Email = session?.customer_details?.email || null;
+    const filter = { email: Email };
+    const updateDoc = {
+      $set: {
+        subscriptionPlan: "premium",
+      },
+    };
+    const result = await premiumUser.updateOne(filter, updateDoc);
+    console.log(result);
+    res.send(result);
+    return;
+  }
+  return res.status(400).send({ message: "Payment not completed" });
 });
 
 app.listen(port, () => {
