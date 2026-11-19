@@ -154,6 +154,19 @@ app.get("/admin/menu", async (req, res) => {
   res.send(result);
 });
 
+app.patch("/admin/users/:id/role", async (req, res) => {
+  const { id } = req.params;
+  const query = { _id: new ObjectId(id) };
+  const newRole = req.body;
+  const updatedDoc = {
+    $set: {
+      role: newRole,
+    },
+  };
+  const result = await premiumUser.updateOne(query, updatedDoc);
+  res.send(result);
+});
+
 app.listen(port, () => {
   console.log("running");
 });
