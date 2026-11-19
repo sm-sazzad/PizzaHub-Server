@@ -51,6 +51,11 @@ app.get("/menu", async (req, res) => {
   res.send(result);
 });
 
+app.get("/features", async (req, res) => {
+  const result = await menu.find().limit(6);
+  res.send(result);
+});
+
 app.get("/orders", async (req, res) => {
   const email = req.query.email;
   const query = { $or: [{ vendorEmail: email }, { customerEmail: email }] };
@@ -61,6 +66,20 @@ app.get("/orders", async (req, res) => {
 app.post("/orders", async (req, res) => {
   const newOrder = req.body;
   const result = await orders.insertOne(newOrder);
+  res.send(result);
+});
+
+app.patch("/orders/:id/status", async (req, res) => {
+  console.log(req.body, req.params);
+  const { id } = req.params;
+  const status = req.body;
+  const query = { _id: new ObjectId(id) };
+  const updatedDoc = {
+    $set: {
+      status: status.status,
+    },
+  };
+  const result = await orders.updateOne(query, updatedDoc);
   res.send(result);
 });
 
