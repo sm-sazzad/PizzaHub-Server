@@ -52,7 +52,7 @@ app.get("/menu", async (req, res) => {
 });
 
 app.get("/features", async (req, res) => {
-  const result = await menu.find().limit(6);
+  const result = await menu.find().limit(6).toArray();
   res.send(result);
 });
 
@@ -77,6 +77,18 @@ app.patch("/orders/:id/status", async (req, res) => {
   const updatedDoc = {
     $set: {
       status: status.status,
+    },
+  };
+  const result = await orders.updateOne(query, updatedDoc);
+  res.send(result);
+});
+
+app.patch("/orders/:orderId/cancel", async (req, res) => {
+  const orderId = req.params.orderId;
+  const query = { _id: new ObjectId(orderId) };
+  const updatedDoc = {
+    $set: {
+      status: "cancelled",
     },
   };
   const result = await orders.updateOne(query, updatedDoc);
