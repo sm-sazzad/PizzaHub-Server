@@ -52,7 +52,7 @@ app.get("/menu", async (req, res) => {
 });
 
 app.get("/features", async (req, res) => {
-  const result = await menu.find().limit(6).toArray();
+  const result = await menu.find({ status: "approved" }).limit(6).toArray();
   res.send(result);
 });
 
@@ -141,6 +141,17 @@ app.patch("/premium-users", async (req, res) => {
     return;
   }
   return res.status(400).send({ message: "Payment not completed" });
+});
+
+// admin access
+app.get("/admin/users", async (req, res) => {
+  const result = await premiumUser.find().toArray();
+  res.send(result);
+});
+
+app.get("/admin/menu", async (req, res) => {
+  const result = await menu.find().toArray();
+  res.send(result);
 });
 
 app.listen(port, () => {
