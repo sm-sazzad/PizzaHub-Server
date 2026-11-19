@@ -154,6 +154,13 @@ app.get("/admin/menu", async (req, res) => {
   res.send(result);
 });
 
+app.get("/admin/transactions", async (req, res) => {
+  const result = await premiumUser
+    .find({ subscriptionPlan: "premium" })
+    .toArray();
+  res.send(result);
+});
+
 app.patch("/admin/users/:id/role", async (req, res) => {
   const { id } = req.params;
   const query = { _id: new ObjectId(id) };
