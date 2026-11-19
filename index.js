@@ -40,6 +40,7 @@ app.get("/menu", async (req, res) => {
     const query = { _id: new ObjectId(id) };
     const result = await menu.findOne(query);
     res.send(result);
+    return;
   }
   if (vendorEmail) {
     const result = await menu.find({ vendorEmail }).toArray();
@@ -50,11 +51,17 @@ app.get("/menu", async (req, res) => {
   res.send(result);
 });
 
+app.get("/orders", async (req, res) => {
+  const email = req.query.email;
+  const query = { $or: [{ vendorEmail: email }, { customerEmail: email }] };
+  const result = await orders.find(query).toArray();
+  res.send(result);
+});
+
 app.post("/orders", async (req, res) => {
   const newOrder = req.body;
   const result = await orders.insertOne(newOrder);
   res.send(result);
-  console.log(result);
 });
 
 app.patch("/menu/:id", async (req, res) => {
