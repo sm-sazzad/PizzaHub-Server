@@ -27,6 +27,7 @@ await connectToMongoDB();
 const database = client.db("PizzaHub");
 const menu = database.collection("menu");
 const premiumUser = database.collection("user");
+const orders = database.collection("orders");
 
 app.get("/", (req, res) => {
   res.send("wellcome");
@@ -34,6 +35,12 @@ app.get("/", (req, res) => {
 
 app.get("/menu", async (req, res) => {
   const vendorEmail = req.query.vendorEmail;
+  const id = req.query.id;
+  if (id) {
+    const query = { _id: new ObjectId(id) };
+    const result = await menu.findOne(query);
+    res.send(result);
+  }
   if (vendorEmail) {
     const result = await menu.find({ vendorEmail }).toArray();
     res.send(result);
@@ -41,6 +48,13 @@ app.get("/menu", async (req, res) => {
   }
   const result = await menu.find({ status: "approved" }).toArray();
   res.send(result);
+});
+
+app.post("/orders", async (req, res) => {
+  const newOrder = req.body;
+  const result = await orders.insertOne(newOrder);
+  res.send(result);
+  console.log(result);
 });
 
 app.patch("/menu/:id", async (req, res) => {
