@@ -29,6 +29,8 @@ const database = client.db("PizzaHub");
 const menu = database.collection("menu");
 const user = database.collection("user");
 const orders = database.collection("orders");
+const reviews = database.collection("reviews");
+const favorites = database.collection("favorites");
 
 // token verify
 const authBaseUrl = process.env.BETTER_AUTH_URL || "http://localhost:3000";
@@ -173,9 +175,10 @@ app.post("/orders", verifyToken, verifyCustomer, async (req, res) => {
 
   // Check if customer account is blocked
   const customerUser = await user.findOne({ email: newOrder.customerEmail });
-  if (customerUser && customerUser.isBlocked) {
+  if (!customerUser || customerUser.isBlocked) {
     return res.status(403).send({
-      message: "Your account is suspended. You cannot place orders.",
+      message:
+        "Your account is suspended or not found. You cannot place orders.",
     });
   }
 
@@ -214,15 +217,76 @@ app.patch("/orders/:id/status", verifyToken, verifyVendor, async (req, res) => {
   res.send(result);
 });
 
-app.patch("/orders/:orderId/cancel", verifyToken, verifyCustomer, async (req, res) => {
-  const orderId = req.params.orderId;
-  const query = { _id: new ObjectId(orderId) };
-  const updatedDoc = {
-    $set: {
-      status: "cancelled",
-    },
+app.patch(
+  "/orders/:orderId/cancel",
+  verifyToken,
+  verifyCustomer,
+  async (req, res) => {
+    const orderId = req.params.orderId;
+    const query = { _id: new ObjectId(orderId) };
+    const updatedDoc = {
+      $set: {
+        status: "cancelled",
+      },
+    };
+    const result = await orders.updateOne(query, updatedDoc);
+    res.send(result);
+  },
+);
+
+// Reviews & Ratings endpoints (Assignment 9 Optional Requirement #1)
+app.get("/reviews", async (req, res) => {
+  const { menuItemId } = req.query;
+  const query = menuItemId ? { menuItemId } : {};
+  const result = await reviews.find(query).sort({ createdAt: -1 }).toArray();
+  res.send(result);
+});
+
+app.post("/reviews", verifyToken, verifyCustomer, async (req, res) => {
+  const { menuItemId, rating, comment, customerName, customerImage } = req.body;
+  const customerEmail = req.user?.email;
+
+  if (!menuItemId || !rating || !comment?.trim()) {
+    return res
+      .status(400)
+      .send({ message: "Rating and review message are required." });
+  }
+
+  // Check if customer account is suspended
+  const customerUser = await user.findOne({ email: customerEmail });
+  if (!customerUser || customerUser.isBlocked) {
+    return res
+      .status(403)
+      .send({ message: "Your account is suspended or not found." });
+  }
+
+  // Requirement: Only customers who ordered this pizza can leave a review
+  const hasOrdered = await orders.findOne({
+    customerEmail,
+    $or: [{ menuItemId }, { itemId: menuItemId }],
+  });
+
+  if (!hasOrdered) {
+    return res.status(403).send({
+      message: "You can only rate and review pizzas you have ordered.",
+    });
+  }
+
+  const reviewDoc = {
+    menuItemId,
+    customerEmail,
+    customerName: customerName || customerUser?.name || "Customer",
+    customerImage: customerImage || customerUser?.image || "",
+    rating: Number(rating),
+    comment: comment.trim(),
+    createdAt: new Date().toISOString(),
   };
-  const result = await orders.updateOne(query, updatedDoc);
+
+  // Upsert: user can submit a review or update their existing review
+  const filter = { customerEmail, menuItemId };
+  const updateDoc = { $set: reviewDoc };
+  const result = await reviews.updateOne(filter, updateDoc, { upsert: true });
+
   res.send(result);
 });
 
@@ -285,6 +349,13 @@ app.get("/admin/menu", verifyToken, verifyAdmin, async (req, res) => {
   res.send(result);
 });
 
+app.delete("/admin/menu/:id", verifyToken, verifyAdmin, async (req, res) => {
+  const { id } = req.params;
+  const query = { _id: new ObjectId(id) };
+  const result = await menu.deleteOne(query);
+  res.send(result);
+});
+
 app.get("/admin/transactions", verifyToken, verifyAdmin, async (req, res) => {
   const result = await user.find({ subscriptionPlan: "premium" }).toArray();
   res.send(result);
@@ -327,6 +398,55 @@ app.patch(
     console.log(result);
   },
 );
+
+// Favorites endpoints
+app.get("/favorites/check", verifyToken, async (req, res) => {
+  const email = req.user?.email;
+  const { menuId } = req.query;
+  if (!email || !menuId) {
+    return res.send({ isFavorite: false });
+  }
+  const found = await favorites.findOne({ userEmail: email, menuId });
+  res.send({ isFavorite: !!found });
+});
+
+app.post("/favorites", verifyToken, async (req, res) => {
+  const email = req.user?.email;
+  const { menuId, itemName, image, price, category } = req.body;
+  if (!menuId) {
+    return res.status(400).send({ message: "menuId is required" });
+  }
+  const existing = await favorites.findOne({ userEmail: email, menuId });
+  if (existing) {
+    return res.send({ message: "Already in favorites", insertedId: existing._id });
+  }
+  const result = await favorites.insertOne({
+    userEmail: email,
+    menuId,
+    itemName,
+    image,
+    price,
+    category,
+    createdAt: new Date(),
+  });
+  res.send(result);
+});
+
+app.delete("/favorites", verifyToken, async (req, res) => {
+  const email = req.user?.email;
+  const { menuId } = req.query;
+  if (!menuId) {
+    return res.status(400).send({ message: "menuId is required" });
+  }
+  const result = await favorites.deleteOne({ userEmail: email, menuId });
+  res.send(result);
+});
+
+app.get("/favorites", verifyToken, async (req, res) => {
+  const email = req.user?.email;
+  const result = await favorites.find({ userEmail: email }).sort({ createdAt: -1 }).toArray();
+  res.send(result);
+});
 
 app.listen(port, () => {
   console.log("running");
